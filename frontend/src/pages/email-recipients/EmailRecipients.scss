@@ -152,6 +152,21 @@
     flex-direction: column;
     gap: var(--spacing-2);
     width: 100%;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-2);
+      width: 100%;
+      padding: var(--spacing-2) var(--spacing-3);
+
+      span {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-2);
+      }
+    }
   }
 
   .checkbox-wrapper {

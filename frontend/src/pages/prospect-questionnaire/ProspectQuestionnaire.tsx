@@ -13,27 +13,27 @@ import { useProspectForm } from "./useProspectForm";
 
 const services = [
   {
-    id: "tax",
+    id: "Tax Compliance + Tax Advisory",
     name: "Tax Compliance + Tax Advisory",
     description: "Tax preparation and planning services",
   },
   {
-    id: "estate",
+    id: "Sports + Entertainment",
     name: "Sports + Entertainment",
     description: "",
   },
   {
-    id: "audit",
+    id: "Assurance Services",
     name: "Assurance Services",
     description: "Financial audit and assurance services",
   },
   {
-    id: "financial",
+    id: "Peer Review",
     name: "Peer Review",
     description: "Certified Peer Review",
   },
   {
-    id: "bookkeeping",
+    id: "Accounting Services",
     name: "Accounting Services",
     description: "Regular bookkeeping and accounting services",
   },

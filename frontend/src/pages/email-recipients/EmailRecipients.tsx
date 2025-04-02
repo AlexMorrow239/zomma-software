@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
   CheckCircle,
@@ -8,6 +9,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/common/button/Button";
 import { FormField } from "@/components/common/form-field/FormField";
@@ -16,6 +18,10 @@ import { Modal } from "@/components/common/modal/Modal";
 
 import { useApiMutation, useApiQuery } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
+import {
+  type EmailRecipientForm,
+  emailRecipientSchema,
+} from "@/schemas/emailRecipientSchemas";
 
 import "./EmailRecipients.scss";
 
@@ -44,14 +50,14 @@ export default function EmailRecipients() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedRecipient, setSelectedRecipient] =
     useState<EmailRecipient | null>(null);
-  const [formData, setFormData] = useState<CreateEmailRecipientDto>({
-    email: "",
-    name: "",
-    active: true,
-  });
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [error, setError] = useState<string | null>(null);
+
+  // Form setup for edit modal
+  const editForm = useForm<EmailRecipientForm>({
+    resolver: zodResolver(emailRecipientSchema),
+  });
 
   // Fetch recipients
   const {
@@ -121,33 +127,21 @@ export default function EmailRecipients() {
     );
   });
 
-  // Handle form changes
-  const handleFormChange = (
-    e: React.ChangeEvent<
-      HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement
-    >
-  ) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
   // Handle create form submission
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+    createMutation.mutate({
+      email: "",
+      name: "",
+      active: true,
+    });
   };
 
   // Handle update form submission
-  const handleUpdateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdateSubmit = editForm.handleSubmit((data) => {
     if (!selectedRecipient) return;
-    updateMutation.mutate(formData);
-  };
+    updateMutation.mutate(data);
+  });
 
   // Handle delete confirmation
   const handleDeleteConfirm = () => {
@@ -158,7 +152,7 @@ export default function EmailRecipients() {
   // Handle edit button click
   const handleEditClick = (recipient: EmailRecipient) => {
     setSelectedRecipient(recipient);
-    setFormData({
+    editForm.reset({
       email: recipient.email,
       name: recipient.name || "",
       active: recipient.active,
@@ -182,7 +176,7 @@ export default function EmailRecipients() {
 
   // Reset form data
   const resetForm = () => {
-    setFormData({
+    editForm.reset({
       email: "",
       name: "",
       active: true,
@@ -211,8 +205,6 @@ export default function EmailRecipients() {
         name="email"
         type="email"
         required={true}
-        value={formData.email}
-        onChange={handleFormChange}
         placeholder="Enter email address"
       />
 
@@ -221,8 +213,6 @@ export default function EmailRecipients() {
         label="Name"
         name="name"
         required={false}
-        value={formData.name}
-        onChange={handleFormChange}
         placeholder="Enter name"
       />
 
@@ -232,8 +222,7 @@ export default function EmailRecipients() {
           <input
             type="checkbox"
             name="active"
-            checked={formData.active}
-            onChange={handleFormChange}
+            defaultChecked={true}
             className="form-field__checkbox"
           />
         </div>
@@ -257,42 +246,35 @@ export default function EmailRecipients() {
   );
 
   const editModalContent = (
-    <form onSubmit={handleUpdateSubmit}>
+    <form id="edit-email-recipient-form" onSubmit={handleUpdateSubmit}>
       {error && (
         <div className="error-message">
           <AlertCircle size={16} /> {error}
         </div>
       )}
 
-      <FormField
+      <FormField<EmailRecipientForm>
         formType="generic"
         label="Email Address"
         name="email"
         type="email"
-        required={true}
-        value={formData.email}
-        onChange={handleFormChange}
-        placeholder="Enter email address"
+        form={editForm}
+        required
       />
 
-      <FormField
+      <FormField<EmailRecipientForm>
         formType="generic"
         label="Name"
         name="name"
-        required={false}
-        value={formData.name}
-        onChange={handleFormChange}
-        placeholder="Enter name"
+        form={editForm}
       />
 
-      <FormField
+      <FormField<EmailRecipientForm>
         formType="generic"
         label="Active"
         name="active"
         type="checkbox"
-        required={false}
-        value={formData.active}
-        onChange={handleFormChange}
+        form={editForm}
       />
     </form>
   );
@@ -304,7 +286,7 @@ export default function EmailRecipients() {
       </Button>
       <Button
         type="submit"
-        onClick={handleUpdateSubmit}
+        form="edit-email-recipient-form"
         isLoading={updateMutation.isPending}
       >
         Update Recipient
@@ -337,7 +319,7 @@ export default function EmailRecipients() {
         onClick={handleDeleteConfirm}
         isLoading={deleteMutation.isPending}
       >
-        Delete
+        Delete Recipient
       </Button>
     </>
   );
@@ -346,9 +328,19 @@ export default function EmailRecipients() {
     <div className="email-recipients-container">
       <div className="page-header">
         <h1>Email Recipients</h1>
-        <Button onClick={handleAddClick} leftIcon={<Plus size={16} />}>
-          Add Recipient
+        <Button onClick={handleAddClick}>
+          <Plus size={16} /> Add Recipient
         </Button>
+      </div>
+
+      <div className="search-container">
+        <input
+          type="text"
+          placeholder="Search recipients..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="form-field__input"
+        />
       </div>
 
       {error && (
@@ -356,23 +348,6 @@ export default function EmailRecipients() {
           <AlertCircle size={16} /> {error}
         </div>
       )}
-
-      <div className="search-container">
-        <FormField
-          showLabel={false}
-          formType="generic"
-          label="Search"
-          name="search"
-          type="text"
-          placeholder="Search recipients..."
-          value={searchTerm}
-          onChange={(
-            event: React.ChangeEvent<
-              HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement
-            >
-          ) => setSearchTerm(event.target.value)}
-        />
-      </div>
 
       {isLoading ? (
         <div className="loader-container">
@@ -390,71 +365,72 @@ export default function EmailRecipients() {
               </tr>
             </thead>
             <tbody>
-              {filteredRecipients?.length ? (
-                filteredRecipients.map((recipient) => (
+              {filteredRecipients?.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="empty-state">
+                    No recipients found
+                  </td>
+                </tr>
+              ) : (
+                filteredRecipients?.map((recipient) => (
                   <tr key={recipient.id}>
                     <td>{recipient.email}</td>
                     <td>{recipient.name || "-"}</td>
                     <td>
                       <span
-                        className={`status-badge ${recipient.active ? "active" : "inactive"}`}
+                        className={`status-badge ${
+                          recipient.active ? "active" : "inactive"
+                        }`}
                       >
                         {recipient.active ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="actions-cell">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleActive(recipient)}
-                        leftIcon={
-                          recipient.active ? (
-                            <XCircle size={16} />
+                    <td>
+                      <div className="actions-cell">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleActive(recipient)}
+                        >
+                          {recipient.active ? (
+                            <>
+                              <XCircle size={16} /> Deactivate
+                            </>
                           ) : (
-                            <CheckCircle size={16} />
-                          )
-                        }
-                      >
-                        {recipient.active ? "Deactivate" : "Activate"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditClick(recipient)}
-                        leftIcon={<Edit size={16} />}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClick(recipient)}
-                        leftIcon={<Trash2 size={16} />}
-                      >
-                        Delete
-                      </Button>
+                            <>
+                              <CheckCircle size={16} /> Activate
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditClick(recipient)}
+                        >
+                          <Edit size={16} /> Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClick(recipient)}
+                        >
+                          <Trash2 size={16} /> Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="empty-state">
-                    {searchTerm
-                      ? "No matching recipients found"
-                      : "No recipients found"}
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Modals */}
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Add New Recipient"
+        title="Add Email Recipient"
+        size="sm"
         footer={addModalFooter}
       >
         {addModalContent}
@@ -463,7 +439,8 @@ export default function EmailRecipients() {
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
-        title="Edit Recipient"
+        title="Edit Email Recipient"
+        size="sm"
         footer={editModalFooter}
       >
         {editModalContent}
@@ -472,7 +449,7 @@ export default function EmailRecipients() {
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        title="Confirm Delete"
+        title="Delete Email Recipient"
         size="sm"
         footer={deleteModalFooter}
       >
